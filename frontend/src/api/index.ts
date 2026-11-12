@@ -13,6 +13,10 @@ import { Events } from 'constants/events';
 import { LOCALSTORAGE } from 'constants/localStorage';
 import { getBasePath } from 'utils/basePath';
 import { eventEmitter } from 'utils/getEventEmitter';
+import {
+	applyNamespaceScope,
+	applyNamespaceScopeToResponse,
+} from 'utils/namespaceScope';
 import { getIsNoAuthMode } from 'utils/noAuthMode';
 
 import apiV1, { apiAlertManager, apiV2, apiV3, apiV4, apiV5 } from './apiV1';
@@ -48,12 +52,13 @@ export const interceptorsResponse = (
 		}
 	}
 
-	return Promise.resolve(value);
+	// Fork: drop saved objects that belong to another namespace.
+	return Promise.resolve(applyNamespaceScopeToResponse(value));
 };
 
 export const interceptorsRequestResponse = (
 	value: InternalAxiosRequestConfig,
-): InternalAxiosRequestConfig => {
+): InternalAxiosRequestConfig | Promise<InternalAxiosRequestConfig> => {
 	// Attach metadata safely (not sent with the request)
 	Object.defineProperty(value, 'metadata', {
 		value: { startTime: new Date().getTime() },
@@ -66,7 +71,8 @@ export const interceptorsRequestResponse = (
 		value.headers.Authorization = token ? `Bearer ${token}` : '';
 	}
 
-	return value;
+	// Fork: narrow queries to the namespace picked in the side nav.
+	return applyNamespaceScope(value);
 };
 
 // Strips the leading '/' from path and joins with base — idempotent if already prefixed.
