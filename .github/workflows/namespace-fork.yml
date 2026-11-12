@@ -1,0 +1,146 @@
+# Keeps the namespace-scope fork on top of the latest SigNoz release and
+# publishes the UI image.
+#
+#   - daily: if SigNoz published a newer release, rebase the fork onto it
+#   - tests: namespace scope unit tests + endpoint coverage guard
+#   - image: ghcr.io/<owner>/signoz:<signoz version>-ns (linux/amd64 + arm64)
+#
+# A rebase conflict or a failing test stops the run before anything is pushed,
+# so a broken upgrade never produces an image. GitHub emails the repo owner
+# when a scheduled run fails.
+name: namespace-fork
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+    inputs:
+      release:
+        description: 'SigNoz release to rebase onto (default: latest)'
+        required: false
+  push:
+    branches: [namespace-scope]
+
+permissions:
+  contents: write
+  packages: write
+
+concurrency:
+  group: namespace-fork
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    outputs:
+      base: ${{ steps.rebase.outputs.base }}
+      skip: ${{ steps.rebase.outputs.skip }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: namespace-scope
+          fetch-depth: 0
+          # Pushing a rebase that touches upstream's .github/workflows needs a
+          # token with the "workflows" permission; GITHUB_TOKEN can't do that.
+          token: ${{ secrets.FORK_PUSH_TOKEN || github.token }}
+
+      - name: Rebase onto the newest SigNoz release
+        id: rebase
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REQUESTED: ${{ github.event.inputs.release }}
+        run: |
+          set -euo pipefail
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          current="$(cat .fork/base)"
+          target="${REQUESTED:-$(gh api repos/SigNoz/signoz/releases/latest -q .tag_name)}"
+          echo "current base: $current, target: $target"
+
+          if [ "$target" != "$current" ] && [ "${{ github.event_name }}" != "push" ]; then
+            git remote add upstream https://github.com/SigNoz/signoz.git
+            git fetch --no-tags upstream "refs/tags/$current:refs/tags/$current" "refs/tags/$target:refs/tags/$target"
+            if ! git rebase --onto "$target" "$current" namespace-scope; then
+              echo "::error::Rebase onto $target conflicts:"
+              git diff --name-only --diff-filter=U
+              exit 1
+            fi
+            echo "$target" > .fork/base
+            git commit -am "fork: rebase onto SigNoz $target"
+            echo "rebased=true" >> "$GITHUB_OUTPUT"
+          fi
+          echo "base=$(cat .fork/base)" >> "$GITHUB_OUTPUT"
+          # nightly run with no new release: nothing to build
+          if [ "${{ github.event_name }}" = "schedule" ] && [ "$target" = "$current" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-node@v4
+        if: steps.rebase.outputs.skip != 'true'
+        with:
+          node-version: 22
+
+      - name: Install pnpm
+        if: steps.rebase.outputs.skip != 'true'
+        run: npm install -g pnpm@10
+
+      - name: Namespace scope tests
+        if: steps.rebase.outputs.skip != 'true'
+        working-directory: frontend
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm jest src/utils/__tests__/namespaceScope
+
+      - name: Build frontend
+        if: steps.rebase.outputs.skip != 'true'
+        run: .fork/build-frontend.sh
+
+      - name: Push rebased branch
+        if: steps.rebase.outputs.rebased == 'true'
+        run: git push --force-with-lease origin namespace-scope
+
+      - uses: actions/upload-artifact@v4
+        if: steps.rebase.outputs.skip != 'true'
+        with:
+          name: web
+          path: frontend/build
+          retention-days: 3
+
+  image:
+    needs: sync
+    if: needs.sync.outputs.skip != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: namespace-scope
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: web
+          path: frontend/build
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Image name
+        id: name
+        run: echo "image=ghcr.io/$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')/signoz" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: .fork/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          build-args: SIGNOZ_VERSION=${{ needs.sync.outputs.base }}
+          push: true
+          tags: |
+            ${{ steps.name.outputs.image }}:${{ needs.sync.outputs.base }}-ns
+            ${{ steps.name.outputs.image }}:${{ needs.sync.outputs.base }}-ns-${{ github.run_number }}
