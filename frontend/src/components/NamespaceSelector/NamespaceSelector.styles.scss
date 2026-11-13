@@ -1,0 +1,24 @@
+// Slim bar above every page, selector on the left.
+.namespace-selector {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-shrink: 0;
+	height: 36px;
+	padding: 0 16px;
+	border-bottom: 1px solid var(--bg-slate-500, rgba(255, 255, 255, 0.08));
+
+	.namespace-selector-label {
+		font-size: 12px;
+		opacity: 0.6;
+		white-space: nowrap;
+	}
+
+	.namespace-selector-select {
+		min-width: 180px;
+	}
+
+	&.is-scoped .ant-select-selector {
+		border-color: var(--bg-robin-500, #4e74f8) !important;
+	}
+}

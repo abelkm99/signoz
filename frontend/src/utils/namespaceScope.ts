@@ -1,7 +1,7 @@
 /**
  * Global namespace scope (fork addition).
  *
- * When a namespace is picked in the side nav, the whole UI is narrowed to it:
+ * When a namespace is picked in the top bar, the whole UI is narrowed to it:
  *
  *  - telemetry: every data request gets `service.namespace = '<ns>'`
  *    (query_range v3/v4/v5, exports, services/errors, infra monitoring,

@@ -87,6 +87,7 @@ import {
 	getRemainingDays,
 } from 'utils/timeUtils';
 
+import NamespaceSelector from 'components/NamespaceSelector';
 import { ChildrenContainer, Layout, LayoutContent } from './styles';
 import { getRouteKey } from './utils';
 
@@ -832,6 +833,8 @@ function AppLayout(props: AppLayoutProps): JSX.Element {
 							<LayoutContent data-overlayscrollbars-initialize>
 								<OverlayScrollbar>
 									<ChildrenContainer>
+										{/* Fork: global namespace scope (utils/namespaceScope.ts) */}
+										{isToDisplayLayout && !renderFullScreen && <NamespaceSelector />}
 										{isToDisplayLayout && !renderFullScreen && !isAIAssistantPage && (
 											<TopNav />
 										)}

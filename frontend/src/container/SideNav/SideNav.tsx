@@ -27,7 +27,6 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Button, Modal, Tooltip } from 'antd';
-import NamespaceSelector from './NamespaceSelector';
 import logEvent from 'api/common/logEvent';
 import { Logout } from 'api/utils';
 import updateUserPreference from 'api/v1/user/preferences/name/update';
@@ -1053,11 +1052,6 @@ function SideNav({ isPinned }: { isPinned: boolean }): JSX.Element {
 						</div>
 					</div>
 				</div>
-
-				<NamespaceSelector
-					isCollapsed={isCollapsed}
-					onDropdownOpenChange={handleDropdownOpenChange}
-				/>
 
 				<div
 					className={cx(
