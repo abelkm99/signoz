@@ -1,7 +1,7 @@
 # SigNoz namespace fork
 
 This fork of [SigNoz](https://github.com/SigNoz/signoz) adds a global
-**namespace switcher** to the SigNoz UI. Pick a namespace in the side nav and
+**namespace switcher** to the SigNoz UI. Pick a namespace in the bar at the top-left of every page and
 the whole UI is scoped to `service.namespace = '<namespace>'`. Pick nothing
 and SigNoz behaves exactly like upstream.
 
@@ -35,8 +35,9 @@ apps that don't set it.
 | File | Purpose |
 |---|---|
 | `frontend/src/utils/namespaceScope.ts` | all scoping rules (axios request/response hooks) |
-| `frontend/src/container/SideNav/NamespaceSelector/` | the side-nav dropdown |
-| `frontend/src/api/index.ts`, `frontend/src/container/SideNav/SideNav.tsx` | ~10 lines wiring the two above in |
+| `frontend/src/components/NamespaceSelector/` | the namespace bar (top-left, every page) |
+| `frontend/src/api/index.ts`, `frontend/src/container/AppLayout/index.tsx` | ~10 lines wiring the two above in |
+| `frontend/src/hooks/queryPagination/utils.ts`, `frontend/src/container/Controls/config.ts` | lists open with 200 rows per page (upstream: smallest option / 100) |
 | `frontend/src/utils/__tests__/namespaceScope*.test.ts` | unit tests + endpoint coverage guard |
 | `frontend/src/utils/namespaceScope.endpoints.json` | every API endpoint and how it is scoped |
 | `.fork/` | base release, build script, Dockerfile |

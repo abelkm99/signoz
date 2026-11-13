@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getFieldsValues } from 'api/generated/services/fields';
-import { Select, Tooltip } from 'antd';
+import { Select } from 'antd';
 import {
 	getSelectedNamespace,
 	NAMESPACE_ATTRIBUTE,
@@ -40,16 +40,8 @@ async function fetchNamespaces(): Promise<string[]> {
 	return Array.from(values).sort((a, b) => a.localeCompare(b));
 }
 
-interface NamespaceSelectorProps {
-	isCollapsed: boolean;
-	// Keeps the side nav expanded while the dropdown portal is open.
-	onDropdownOpenChange?: (open: boolean) => void;
-}
-
-function NamespaceSelector({
-	isCollapsed,
-	onDropdownOpenChange,
-}: NamespaceSelectorProps): JSX.Element {
+// Rendered once by AppLayout as a bar above every page.
+function NamespaceSelector(): JSX.Element {
 	const [selected] = useState<string | null>(getSelectedNamespace);
 	const [namespaces, setNamespaces] = useState<string[]>([]);
 	const [loading, setLoading] = useState(true);
@@ -91,40 +83,23 @@ function NamespaceSelector({
 		window.location.reload();
 	};
 
-	if (isCollapsed) {
-		return (
-			<Tooltip
-				placement="right"
-				title={selected ? `Namespace: ${selected}` : 'All namespaces'}
-			>
-				<div
-					className={`namespace-selector-collapsed ${selected ? 'is-scoped' : ''}`}
-					data-testid="namespace-selector-collapsed"
-				>
-					{selected ? selected.slice(0, 2).toUpperCase() : 'ALL'}
-				</div>
-			</Tooltip>
-		);
-	}
-
 	return (
 		<div
 			className={`namespace-selector ${selected ? 'is-scoped' : ''}`}
 			data-testid="namespace-selector"
 		>
-			<div className="namespace-selector-label">Namespace</div>
+			<span className="namespace-selector-label">Namespace</span>
 			<Select
 				size="small"
 				allowClear
 				showSearch
 				loading={loading}
 				value={selected ?? undefined}
-				placeholder="All namespaces"
+				placeholder="All"
 				options={options}
 				onChange={onChange}
 				popupMatchSelectWidth={false}
-				onDropdownVisibleChange={onDropdownOpenChange}
-				style={{ width: '100%' }}
+				className="namespace-selector-select"
 			/>
 		</div>
 	);
